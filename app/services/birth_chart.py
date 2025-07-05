@@ -167,20 +167,7 @@ class OpenAIService:
         - Specific insights based on the birth chart data
         - Cultural sensitivity to Vedic traditions
         
-        CRITICAL: Format your response as a flat JSON object with multiple sections, each containing "title" and "description" fields.
-        Example format:
-        {
-          "section1": {
-            "title": "Section Title",
-            "description": "Detailed description here..."
-          },
-          "section2": {
-            "title": "Another Section Title", 
-            "description": "Another detailed description..."
-          }
-        }
-        
-        Do NOT nest sections under other keys. Keep the structure flat and simple."""
+        Format your response as a structured JSON with title and description fields for each section."""
     
     def _prepare_chart_data(self, birth_chart_data: Dict[str, Any], person_name: Optional[str]) -> str:
         """Prepare birth chart data for AI analysis."""
@@ -227,122 +214,47 @@ class OpenAIService:
         base_prompt = f"{chart_summary}\n\n"
         
         if report_type == "personality":
-            return base_prompt + """Based on this Vedic birth chart, provide a detailed personality analysis in the following JSON format:
-
-            {
-              "core_personality": {
-                "title": "Core Personality Traits",
-                "description": "Detailed analysis of core personality characteristics based on Sun, Moon, and Ascendant..."
-              },
-              "strengths": {
-                "title": "Key Strengths and Natural Talents",
-                "description": "Analysis of natural abilities, talents, and positive qualities..."
-              },
-              "growth_areas": {
-                "title": "Areas for Personal Growth",
-                "description": "Areas where personal development and growth would be beneficial..."
-              },
-              "life_purpose": {
-                "title": "Life Purpose and Dharma",
-                "description": "Analysis of life purpose, spiritual calling, and dharmic path..."
-              }
-            }
+            return base_prompt + """Based on this Vedic birth chart, provide a detailed personality analysis including:
+            1. Core personality traits and characteristics
+            2. Key strengths and natural talents
+            3. Areas for personal growth and development
+            4. Life purpose and dharma
             
             Focus on how the Sun, Moon, and Ascendant interact to create the individual's core nature."""
         
         elif report_type == "career":
-            return base_prompt + """Based on this Vedic birth chart, provide a comprehensive career analysis in the following JSON format:
-
-            {
-              "ideal_career_paths": {
-                "title": "Ideal Career Paths and Professional Directions",
-                "description": "Detailed analysis of suitable career paths based on 10th house, Sun placement, and planetary influences..."
-              },
-              "work_style": {
-                "title": "Work Style and Professional Approach",
-                "description": "Analysis of how the person approaches work, their professional style, and workplace preferences..."
-              },
-              "financial_prospects": {
-                "title": "Financial Prospects and Wealth Potential",
-                "description": "Analysis of earning potential, financial growth opportunities, and wealth-building strategies..."
-              },
-              "business_opportunities": {
-                "title": "Business and Entrepreneurship Opportunities",
-                "description": "Analysis of entrepreneurial potential, business ventures, and self-employment suitability..."
-              }
-            }
+            return base_prompt + """Based on this Vedic birth chart, provide a comprehensive career analysis including:
+            1. Ideal career paths and professional directions
+            2. Work style and professional approach
+            3. Financial prospects and wealth potential
+            4. Business and entrepreneurship opportunities
             
-            Pay special attention to the 10th house, Sun placement, and Jupiter's influence. Provide specific, actionable insights."""
+            Pay special attention to the 10th house, Sun placement, and Jupiter's influence."""
         
         elif report_type == "relationship":
-            return base_prompt + """Based on this Vedic birth chart, provide a detailed relationship analysis in the following JSON format:
-
-            {
-              "love_nature": {
-                "title": "Love Nature and Expression Style",
-                "description": "Analysis of how the person expresses love and affection, their romantic nature..."
-              },
-              "relationship_patterns": {
-                "title": "Relationship Patterns and Tendencies",
-                "description": "Analysis of recurring patterns in relationships, behavioral tendencies..."
-              },
-              "compatibility": {
-                "title": "Compatibility Insights and Partnership Needs",
-                "description": "Analysis of what the person needs in a partner and compatibility factors..."
-              },
-              "marriage_timing": {
-                "title": "Marriage and Commitment Patterns",
-                "description": "Analysis of marriage timing, commitment readiness, and partnership dynamics..."
-              }
-            }
+            return base_prompt + """Based on this Vedic birth chart, provide a detailed relationship analysis including:
+            1. Love nature and expression style
+            2. Relationship patterns and tendencies
+            3. Compatibility insights and partnership needs
+            4. Marriage timing and commitment patterns
             
             Focus on Venus, Mars, and 7th house influences."""
         
         elif report_type == "health":
-            return base_prompt + """Based on this Vedic birth chart, provide a health and wellness analysis in the following JSON format:
-
-            {
-              "constitution": {
-                "title": "Ayurvedic Constitution and Body Type",
-                "description": "Analysis of constitutional type (Vata, Pitta, Kapha) and body characteristics..."
-              },
-              "health_strengths": {
-                "title": "Health Strengths and Vitality Areas",
-                "description": "Analysis of areas of natural health strength and vitality..."
-              },
-              "health_challenges": {
-                "title": "Potential Health Challenges",
-                "description": "Analysis of potential health vulnerabilities and areas of concern..."
-              },
-              "wellness_recommendations": {
-                "title": "Wellness Recommendations and Lifestyle Guidance",
-                "description": "Specific recommendations for maintaining health and wellness..."
-              }
-            }
+            return base_prompt + """Based on this Vedic birth chart, provide a health and wellness analysis including:
+            1. Ayurvedic constitution and body type
+            2. Health strengths and vitality areas
+            3. Potential health challenges and vulnerabilities
+            4. Wellness recommendations and lifestyle guidance
             
             Consider the 6th house, Sun, Moon, and overall planetary balance."""
         
         elif report_type == "spiritual":
-            return base_prompt + """Based on this Vedic birth chart, provide a spiritual analysis in the following JSON format:
-
-            {
-              "spiritual_path": {
-                "title": "Spiritual Path and Dharmic Direction",
-                "description": "Analysis of the person's spiritual calling and dharmic path..."
-              },
-              "karmic_lessons": {
-                "title": "Karmic Lessons and Soul Purpose",
-                "description": "Analysis of karmic lessons to learn and soul's purpose in this lifetime..."
-              },
-              "spiritual_practices": {
-                "title": "Recommended Spiritual Practices",
-                "description": "Specific spiritual practices, meditation techniques, and rituals that benefit the person..."
-              },
-              "past_life_influences": {
-                "title": "Past Life Influences and Karmic Patterns",
-                "description": "Analysis of past life influences and recurring karmic patterns..."
-              }
-            }
+            return base_prompt + """Based on this Vedic birth chart, provide a spiritual analysis including:
+            1. Spiritual path and dharmic direction
+            2. Karmic lessons and soul purpose
+            3. Recommended spiritual practices and meditation
+            4. Past life influences and karmic patterns
             
             Focus on the 9th and 12th houses, and the Rahu-Ketu axis."""
         
@@ -354,62 +266,15 @@ class OpenAIService:
         try:
             # Try to parse as JSON first
             parsed = json.loads(content)
-            
-            # Check if the response is in the expected format
-            if isinstance(parsed, dict):
-                # Handle nested structure like {"CareerAnalysis": {"Sections": {...}}}
-                structured_response = {}
-                
-                # Extract main sections from the parsed response
-                for key, value in parsed.items():
-                    if isinstance(value, dict):
-                        # Check for "Sections" key (common in AI responses)
-                        if "Sections" in value and isinstance(value["Sections"], dict):
-                            # Extract individual sections
-                            for section_key, section_data in value["Sections"].items():
-                                if isinstance(section_data, dict) and "Title" in section_data and "Description" in section_data:
-                                    # Convert to lowercase with underscores
-                                    formatted_key = section_key.lower().replace(" ", "_")
-                                    structured_response[formatted_key] = {
-                                        "title": section_data["Title"],
-                                        "description": section_data["Description"]
-                                    }
-                        
-                        # Also check for direct title/description pairs
-                        elif "Title" in value and "Description" in value:
-                            formatted_key = key.lower().replace(" ", "_")
-                            structured_response[formatted_key] = {
-                                "title": value["Title"],
-                                "description": value["Description"]
-                            }
-                        
-                        # Handle flat structure where each key is a section
-                        elif all(isinstance(v, dict) and "title" in v and "description" in v for v in value.values() if isinstance(v, dict)):
-                            # This is already in the correct format
-                            return value
-                
-                # If we found structured sections, return them
-                if structured_response:
-                    return structured_response
-                
-                # Fallback: return the parsed response as-is if it's properly structured
-                return parsed
-            else:
-                # If it's not a dict, treat as text
-                return self._create_single_section_response(content, report_type)
-                
+            return parsed
         except json.JSONDecodeError:
             # If not JSON, structure the text response
-            return self._create_single_section_response(content, report_type)
-    
-    def _create_single_section_response(self, content: str, report_type: str) -> Dict[str, Any]:
-        """Create a single section response for unstructured content."""
-        return {
-            f"{report_type}_analysis": {
-                "title": f"{report_type.title()} Analysis",
-                "description": content
+            return {
+                f"{report_type}_analysis": {
+                    "title": f"{report_type.title()} Analysis",
+                    "description": content
+                }
             }
-        }
     
     def _get_fallback_report(self, report_type: str, birth_chart_data: Dict[str, Any]) -> Dict[str, Any]:
         """Provide fallback report when OpenAI is not available."""
