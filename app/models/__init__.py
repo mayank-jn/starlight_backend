@@ -150,3 +150,43 @@ class DetailedReportResponse(BaseModel):
     health_report: Dict[str, Any] = Field(..., description="Health and wellness analysis")
     spiritual_report: Dict[str, Any] = Field(..., description="Spiritual and karmic analysis")
     generated_at: datetime = Field(default_factory=datetime.now, description="Report generation timestamp")
+
+# Chat models
+class ChatMessage(BaseModel):
+    role: str = Field(..., description="Message role (user or assistant)")
+    content: str = Field(..., description="Message content")
+    timestamp: datetime = Field(default_factory=datetime.now, description="Message timestamp")
+
+class ChatRequest(BaseModel):
+    message: str = Field(..., description="User's message/question")
+    birth_date: str = Field(..., description="Birth date in YYYY-MM-DD format")
+    birth_time: str = Field(..., description="Birth time in HH:MM format")
+    latitude: float = Field(..., ge=-90, le=90, description="Latitude of birth location")
+    longitude: float = Field(..., ge=-180, le=180, description="Longitude of birth location")
+    timezone: Optional[str] = Field(None, description="Timezone (e.g., 'UTC', 'America/New_York')")
+    house_system: HouseSystem = Field(default=HouseSystem.PLACIDUS, description="House system to use")
+    ayanamsa: AyanamsaSystem = Field(default=AyanamsaSystem.LAHIRI, description="Ayanamsa system for Vedic calculations")
+    conversation_id: Optional[str] = Field(None, description="Conversation ID for maintaining context")
+    user_name: Optional[str] = Field(None, description="User's name for personalization")
+
+class ChatResponse(BaseModel):
+    success: bool = Field(..., description="Whether the chat was successful")
+    response: str = Field(..., description="Assistant's response")
+    conversation_id: str = Field(..., description="Conversation ID")
+    user_message: str = Field(..., description="Original user message")
+    timestamp: datetime = Field(..., description="Response timestamp")
+    usage: Optional[Dict[str, int]] = Field(None, description="Token usage information")
+    metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata")
+    error: Optional[str] = Field(None, description="Error message if failed")
+
+class ConversationHistoryResponse(BaseModel):
+    conversation_id: str = Field(..., description="Conversation ID")
+    messages: List[ChatMessage] = Field(..., description="Conversation messages")
+    birth_chart_summary: Dict[str, Any] = Field(..., description="Associated birth chart summary")
+    user_name: Optional[str] = Field(None, description="User's name")
+    created_at: datetime = Field(..., description="Conversation creation timestamp")
+    message_count: int = Field(..., description="Total number of messages")
+
+class SuggestedQuestionsResponse(BaseModel):
+    questions: List[str] = Field(..., description="List of suggested questions")
+    birth_chart_summary: Dict[str, Any] = Field(..., description="Birth chart summary used for suggestions")
