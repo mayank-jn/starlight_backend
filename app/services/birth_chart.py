@@ -428,6 +428,41 @@ class BirthChartService:
         # Initialize OpenAI service
         self.openai_service = OpenAIService()
     
+    def _validate_birth_data(self, birth_date: str, birth_time: str, latitude: float, longitude: float, timezone_str: str = None):
+        """Validate birth data inputs for accuracy."""
+        errors = []
+        
+        # Validate date format
+        try:
+            date_obj = datetime.strptime(birth_date, '%Y-%m-%d')
+            if date_obj.year < 1900 or date_obj.year > 2100:
+                errors.append(f"Birth year {date_obj.year} is outside optimal range (1900-2100)")
+        except ValueError:
+            errors.append(f"Invalid date format '{birth_date}'. Use YYYY-MM-DD format")
+        
+        # Validate time format
+        try:
+            datetime.strptime(birth_time, '%H:%M')
+        except ValueError:
+            errors.append(f"Invalid time format '{birth_time}'. Use HH:MM format (24-hour)")
+        
+        # Validate coordinates
+        if not isinstance(latitude, (int, float)) or not (-90 <= latitude <= 90):
+            errors.append(f"Invalid latitude {latitude}. Must be between -90 and +90 degrees")
+        
+        if not isinstance(longitude, (int, float)) or not (-180 <= longitude <= 180):
+            errors.append(f"Invalid longitude {longitude}. Must be between -180 and +180 degrees")
+        
+        # Validate timezone
+        if timezone_str:
+            try:
+                pytz.timezone(timezone_str)
+            except pytz.exceptions.UnknownTimeZoneError:
+                errors.append(f"Invalid timezone '{timezone_str}'. Use standard timezone names like 'America/New_York'")
+        
+        if errors:
+            raise ValueError(f"Input validation failed: {'; '.join(errors)}")
+    
     def get_zodiac_sign(self, longitude: float) -> ZodiacSign:
         """Get zodiac sign for a given longitude."""
         sign_index = int(longitude // 30)
@@ -454,22 +489,35 @@ class BirthChartService:
         return corrected_longitude
     
     def calculate_julian_day(self, birth_date: str, birth_time: str, timezone_str: Optional[str] = None) -> float:
-        """Calculate Julian day for birth date and time."""
+        """Calculate Julian day for birth date and time with enhanced accuracy."""
         dt_str = f"{birth_date} {birth_time}"
         dt = datetime.strptime(dt_str, "%Y-%m-%d %H:%M")
         
         if timezone_str:
             try:
                 tz = pytz.timezone(timezone_str)
-                dt = tz.localize(dt)
+                
+                # Handle DST ambiguity properly
+                try:
+                    dt = tz.localize(dt)
+                except pytz.exceptions.AmbiguousTimeError:
+                    # During DST overlap, use standard time
+                    dt = tz.localize(dt, is_dst=False)
+                except pytz.exceptions.NonExistentTimeError:
+                    # During DST gap, use daylight time
+                    dt = tz.localize(dt, is_dst=True)
+                
                 dt = dt.astimezone(pytz.UTC)
-            except:
-                # If timezone conversion fails, assume UTC
-                dt = dt.replace(tzinfo=pytz.UTC)
+                
+            except pytz.exceptions.UnknownTimeZoneError:
+                raise ValueError(f"Invalid timezone: {timezone_str}")
+            except Exception as e:
+                raise ValueError(f"Timezone conversion failed: {e}")
         else:
             dt = dt.replace(tzinfo=pytz.UTC)
         
-        return swe.julday(dt.year, dt.month, dt.day, dt.hour + dt.minute / 60.0)
+        # Enhanced precision calculation
+        return swe.julday(dt.year, dt.month, dt.day, dt.hour + dt.minute / 60.0 + dt.second / 3600.0)
     
     def calculate_planet_positions(self, julian_day: float, house_cusps: List[float], 
                                  ayanamsa_value: float) -> List[PlanetPosition]:
@@ -530,16 +578,30 @@ class BirthChartService:
         return planets
     
     def get_house_number(self, longitude: float, house_cusps: List[float]) -> int:
-        """Determine which house a planet is in based on its longitude."""
+        """Determine which house a planet is in based on its longitude with accurate wraparound handling."""
+        # Normalize longitude to 0-360 range
+        longitude = longitude % 360
+        
+        # Normalize all house cusps
+        normalized_cusps = [cusp % 360 for cusp in house_cusps]
+        
+        # Check each house with proper wraparound logic
         for i in range(12):
-            next_house = (i + 1) % 12
-            if i == 11:  # Last house
-                if longitude >= house_cusps[i] or longitude < house_cusps[0]:
+            cusp_current = normalized_cusps[i]
+            cusp_next = normalized_cusps[(i + 1) % 12]
+            
+            # Handle wraparound at 0/360 degrees
+            if cusp_current > cusp_next:
+                # House crosses 0° (e.g., 350° to 10°)
+                if longitude >= cusp_current or longitude < cusp_next:
                     return i + 1
             else:
-                if house_cusps[i] <= longitude < house_cusps[next_house]:
+                # Normal case - house doesn't cross 0°
+                if cusp_current <= longitude < cusp_next:
                     return i + 1
-        return 1  # Default to first house
+        
+        # Fallback to first house (should rarely happen)
+        return 1
     
     def calculate_houses(self, julian_day: float, latitude: float, longitude: float, 
                         house_system: HouseSystem, ayanamsa_value: float) -> List[House]:
@@ -632,8 +694,12 @@ class BirthChartService:
         }
     
     def generate_birth_chart(self, request: BirthChartRequest) -> BirthChartResponse:
-        """Generate a comprehensive Vedic birth chart."""
+        """Generate a comprehensive Vedic birth chart with enhanced accuracy."""
         try:
+            # Validate input data
+            self._validate_birth_data(request.birth_date, request.birth_time, 
+                                    request.latitude, request.longitude, request.timezone)
+            
             # Calculate Julian day
             julian_day = self.calculate_julian_day(
                 request.birth_date, 

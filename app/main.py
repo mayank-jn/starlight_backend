@@ -116,6 +116,14 @@ app.add_middleware(
 # Include routers
 app.include_router(astrology.router, prefix="/api/astrology", tags=["🌟 Astrology"])
 
+# Import and include chat router
+from app.routers import chat
+app.include_router(chat.router, prefix="/api/chat", tags=["💬 Chat"])
+
+# Import and include panchang router
+from app.routers import panchang
+app.include_router(panchang.router, tags=["📅 Panchang & Muhurats"])
+
 @app.get("/", tags=["📋 Root"], summary="API Information")
 async def read_root():
     """
@@ -159,13 +167,24 @@ async def read_root():
             "🔄 Planetary aspects",
             "📊 Chart analysis",
             "🌍 Global timezone support",
-            "📱 JSON responses"
+            "📱 JSON responses",
+            "💬 AI-powered astrological chat",
+            "🤖 Personalized birth chart consultations",
+            "📅 Panchang calculations",
+            "🕰️ Muhurat timings",
+            "🌙 Tithi & Nakshatra calculations"
         ],
         "endpoints": {
             "birth_chart": "/api/astrology/birth-chart",
+            "detailed_report": "/api/astrology/detailed-report",
             "planets": "/api/astrology/planets/{planet_name}",
             "houses": "/api/astrology/houses",
             "aspects": "/api/astrology/aspects",
+            "chat": "/api/chat/chat",
+            "suggested_questions": "/api/chat/suggested-questions",
+            "panchang": "/api/panchang/calculate",
+            "today_panchang": "/api/panchang/today",
+            "muhurats": "/api/panchang/muhurats",
             "health": "/api/astrology/health"
         }
     }
@@ -232,6 +251,14 @@ def custom_openapi():
             "externalDocs": {
                 "description": "Learn more about astrology",
                 "url": "https://en.wikipedia.org/wiki/Astrology"
+            }
+        },
+        {
+            "name": "💬 Chat",
+            "description": "AI-powered astrological consultations and personalized guidance",
+            "externalDocs": {
+                "description": "Learn about AI astrology",
+                "url": "https://openai.com"
             }
         },
         {
