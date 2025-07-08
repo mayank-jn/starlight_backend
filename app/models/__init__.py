@@ -151,6 +151,99 @@ class DetailedReportResponse(BaseModel):
     spiritual_report: Dict[str, Any] = Field(..., description="Spiritual and karmic analysis")
     generated_at: datetime = Field(default_factory=datetime.now, description="Report generation timestamp")
 
+# Compatibility Matching Models
+class CompatibilityLevel(str, Enum):
+    EXCELLENT = "Excellent"
+    VERY_GOOD = "Very Good"
+    GOOD = "Good"
+    AVERAGE = "Average"
+    BELOW_AVERAGE = "Below Average"
+    POOR = "Poor"
+
+class DoshaType(str, Enum):
+    NADI = "Nadi"
+    MANGLIK = "Manglik"
+    BHAKOOT = "Bhakoot"
+    GANA = "Gana"
+
+class KootaType(str, Enum):
+    VARNA = "Varna"
+    VASHYA = "Vashya"
+    TARA = "Tara"
+    YONI = "Yoni"
+    GRAH_MAITRI = "Grah Maitri"
+    GANA = "Gana"
+    BHAKOOT = "Bhakoot"
+    NADI = "Nadi"
+
+class KootaScore(BaseModel):
+    koota_type: KootaType
+    points_earned: float = Field(..., ge=0, description="Points earned for this koota")
+    max_points: float = Field(..., ge=0, description="Maximum possible points")
+    percentage: float = Field(..., ge=0, le=100, description="Percentage score")
+    compatibility_level: CompatibilityLevel
+    description: str = Field(..., description="Detailed description of this koota")
+    factors: Dict[str, Any] = Field(default_factory=dict, description="Factors considered in calculation")
+
+class DoshaInfo(BaseModel):
+    dosha_type: DoshaType
+    person1_affected: bool = Field(..., description="Is person 1 affected by this dosha")
+    person2_affected: bool = Field(..., description="Is person 2 affected by this dosha")
+    severity: str = Field(..., description="Severity level (Low, Medium, High)")
+    cancelled: bool = Field(default=False, description="Is the dosha cancelled")
+    cancellation_reason: Optional[str] = Field(None, description="Reason for dosha cancellation")
+    remedies: List[str] = Field(default_factory=list, description="Suggested remedies")
+    description: str = Field(..., description="Detailed description of the dosha")
+
+class CompatibilityMatchRequest(BaseModel):
+    # Person 1 details
+    person1_name: Optional[str] = Field(None, description="Name of person 1")
+    person1_birth_date: str = Field(..., description="Birth date of person 1 in YYYY-MM-DD format")
+    person1_birth_time: str = Field(..., description="Birth time of person 1 in HH:MM format")
+    person1_latitude: float = Field(..., ge=-90, le=90, description="Latitude of person 1's birth location")
+    person1_longitude: float = Field(..., ge=-180, le=180, description="Longitude of person 1's birth location")
+    person1_timezone: Optional[str] = Field(None, description="Timezone for person 1")
+    
+    # Person 2 details
+    person2_name: Optional[str] = Field(None, description="Name of person 2")
+    person2_birth_date: str = Field(..., description="Birth date of person 2 in YYYY-MM-DD format")
+    person2_birth_time: str = Field(..., description="Birth time of person 2 in HH:MM format")
+    person2_latitude: float = Field(..., ge=-90, le=90, description="Latitude of person 2's birth location")
+    person2_longitude: float = Field(..., ge=-180, le=180, description="Longitude of person 2's birth location")
+    person2_timezone: Optional[str] = Field(None, description="Timezone for person 2")
+    
+    # Calculation settings
+    house_system: HouseSystem = Field(default=HouseSystem.PLACIDUS, description="House system to use")
+    ayanamsa: AyanamsaSystem = Field(default=AyanamsaSystem.LAHIRI, description="Ayanamsa system for Vedic calculations")
+
+class CompatibilityMatchResponse(BaseModel):
+    # Basic info
+    person1_name: Optional[str] = Field(None, description="Name of person 1")
+    person2_name: Optional[str] = Field(None, description="Name of person 2")
+    
+    # Overall compatibility
+    total_points: float = Field(..., description="Total Ashtakoota points (out of 36)")
+    total_percentage: float = Field(..., ge=0, le=100, description="Overall compatibility percentage")
+    compatibility_level: CompatibilityLevel = Field(..., description="Overall compatibility level")
+    
+    # Detailed koota scores
+    koota_scores: List[KootaScore] = Field(..., description="Individual koota scores")
+    
+    # Dosha analysis
+    doshas: List[DoshaInfo] = Field(..., description="Dosha analysis for both persons")
+    
+    # Summary and recommendations
+    match_summary: str = Field(..., description="Overall compatibility summary")
+    recommendations: List[str] = Field(..., description="Recommendations for the couple")
+    
+    # Birth chart data for reference
+    person1_chart: BirthChartResponse = Field(..., description="Person 1's birth chart")
+    person2_chart: BirthChartResponse = Field(..., description="Person 2's birth chart")
+    
+    # Calculation metadata
+    calculation_method: str = Field(default="Ashtakoota", description="Matching method used")
+    calculated_at: datetime = Field(default_factory=datetime.now, description="Calculation timestamp")
+
 # Chat models
 class ChatMessage(BaseModel):
     role: str = Field(..., description="Message role (user or assistant)")
