@@ -58,7 +58,7 @@ async def chat_with_astrologer(request: ChatRequest):
             ayanamsa=request.ayanamsa
         )
         
-        birth_chart = birth_chart_service.generate_birth_chart(birth_chart_request)
+        birth_chart = await birth_chart_service.generate_birth_chart(birth_chart_request)
         
         # Process chat message
         chat_response = chat_service.chat(
@@ -195,7 +195,7 @@ async def get_suggested_questions(request: BirthChartRequest):
         logger.info(f"Generating suggested questions for birth chart {request.birth_date}")
         
         # Generate birth chart
-        birth_chart = birth_chart_service.generate_birth_chart(request)
+        birth_chart = await birth_chart_service.generate_birth_chart(request)
         
         # Get suggested questions
         suggestions = chat_service.get_suggested_questions(birth_chart)
