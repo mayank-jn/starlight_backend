@@ -1,16 +1,20 @@
-
+#!/usr/bin/env python3
 from fastapi import APIRouter, HTTPException, Query, Body
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from typing import Optional
 import logging
+from datetime import datetime
 
 from app.models import (
     BirthChartRequest, BirthChartResponse, DetailedReportRequest, DetailedReportResponse,
-    ErrorResponse, HouseSystem, AyanamsaSystem, CompatibilityMatchRequest, CompatibilityMatchResponse
+    ErrorResponse, HouseSystem, AyanamsaSystem, CompatibilityMatchRequest, CompatibilityMatchResponse,
+    BirthChartWithUserRequest, ProfileCreateRequest, BirthChartDetailsResponse
 )
 from app.services.birth_chart import birth_chart_service
 from app.services.compatibility_service import compatibility_service
 from app.services.enhanced_compatibility_service import enhanced_compatibility_service
+from app.services.supabase_service import supabase_service
+from app.services.prokerala_service import prokerala_service
 
 router = APIRouter()
 
@@ -18,32 +22,61 @@ router = APIRouter()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-@router.post("/birth-chart", response_model=BirthChartResponse)
-async def generate_birth_chart(request: BirthChartRequest):
+@router.post("/birth-chart", response_model=BirthChartDetailsResponse)
+async def generate_birth_chart(request: BirthChartWithUserRequest):
     """
     Generate a comprehensive Vedic birth chart with planets, houses, and aspects.
     
-    This endpoint calculates:
-    - Planet positions in zodiac signs and houses (Sidereal/Vedic system)
-    - House cusps using specified house system
-    - Aspects between planets
-    - Chart summary with dominant signs and houses
-    
-    Uses Vedic (Sidereal) astrology with specified ayanamsa system (default: Lahiri).
+    This endpoint returns astrological data (planet positions) and Vedic chart SVG.
     """
     try:
-        logger.info(f"Generating Vedic birth chart for {request.birth_date} {request.birth_time}")
-        chart = birth_chart_service.generate_birth_chart(request)
-        logger.info("Vedic birth chart generated successfully")
-        return chart
-    
-    except ValueError as e:
-        logger.error(f"Validation error: {str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
-    
+        # Generate new chart
+        logger.info("Generating new birth chart")
+        chart_data = await prokerala_service.generate_birth_chart(request)
+        
+        # Convert datetime to proper format
+        birth_datetime = datetime.strptime(
+            f"{request.birth_date} {request.birth_time}", 
+            "%Y-%m-%d %H:%M"
+        )
+        
+        # Extract planet positions in the format expected by frontend
+        planets = [
+            {
+                'planet': planet.planet.value,
+                'sign': planet.sign.value,
+                'degree': planet.degree,
+                'retrograde': planet.retrograde,
+                'house': planet.house
+            }
+            for planet in chart_data.planets
+        ]
+        
+        # Also generate the Vedic chart SVG
+        vedic_chart_svg = None
+        try:
+            logger.info("Generating Vedic chart SVG")
+            vedic_chart_svg = await prokerala_service.get_birth_chart_image(request)
+            logger.info("Vedic chart SVG generated successfully")
+        except Exception as svg_error:
+            logger.error(f"Error generating Vedic chart SVG: {str(svg_error)}")
+            # Don't fail the entire request if SVG generation fails
+        
+        return BirthChartDetailsResponse(
+            name=request.name,
+            birth_datetime=birth_datetime,
+            location={"latitude": request.latitude, "longitude": request.longitude},
+            planets=planets,
+            chart_summary=chart_data.chart_summary,
+            vedic_chart_svg=vedic_chart_svg
+        )
+        
     except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal server error while generating birth chart")
+        logger.error(f"Error generating birth chart: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error generating birth chart: {str(e)}"
+        )
 
 @router.post("/detailed-report", response_model=DetailedReportResponse)
 async def generate_detailed_report(request: DetailedReportRequest):
@@ -103,7 +136,7 @@ async def get_birth_chart_legacy(
             ayanamsa=ayanamsa
         )
         
-        chart = birth_chart_service.generate_birth_chart(request)
+        chart = await birth_chart_service.generate_birth_chart(request)
         return chart
     
     except ValueError as e:
@@ -175,7 +208,7 @@ async def get_planet_position(
             ayanamsa=ayanamsa
         )
         
-        chart = birth_chart_service.generate_birth_chart(request)
+        chart = await birth_chart_service.generate_birth_chart(request)
         
         # Find the requested planet
         planet = next((p for p in chart.planets if p.planet.value.lower() == planet_name.lower()), None)
@@ -216,7 +249,7 @@ async def get_houses(
             ayanamsa=ayanamsa
         )
         
-        chart = birth_chart_service.generate_birth_chart(request)
+        chart = await birth_chart_service.generate_birth_chart(request)
         return {"houses": chart.houses, "house_system": chart.house_system}
     
     except ValueError as e:
@@ -248,7 +281,7 @@ async def get_aspects(
             ayanamsa=ayanamsa
         )
         
-        chart = birth_chart_service.generate_birth_chart(request)
+        chart = await birth_chart_service.generate_birth_chart(request)
         return {"aspects": chart.aspects}
     
     except ValueError as e:
@@ -280,7 +313,7 @@ async def get_chart_summary(
             ayanamsa=ayanamsa
         )
         
-        chart = birth_chart_service.generate_birth_chart(request)
+        chart = await birth_chart_service.generate_birth_chart(request)
         return chart.chart_summary
     
     except ValueError as e:
@@ -537,7 +570,7 @@ async def check_manglik_dosha(
             ayanamsa=ayanamsa
         )
         
-        chart = birth_chart_service.generate_birth_chart(request)
+        chart = await birth_chart_service.generate_birth_chart(request)
         manglik_info = compatibility_service.calculate_manglik_dosha(chart)
         
         return {
@@ -671,3 +704,25 @@ async def calculate_enhanced_compatibility_match(request: CompatibilityMatchRequ
     except Exception as e:
         logger.error(f"Unexpected error in enhanced compatibility calculation: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error while calculating enhanced compatibility match")
+
+@router.post("/vedic-chart")
+async def get_vedic_chart(request: BirthChartRequest):
+    """
+    Get a Vedic-style birth chart image from Prokerala API.
+    Returns the chart data in North Indian style.
+    """
+    try:
+        logger.info(f"Generating Vedic chart for {request.birth_date} {request.birth_time}")
+        
+        chart_data = await prokerala_service.get_birth_chart_image(request)
+        logger.info("Vedic chart generated successfully")
+        
+        # Return the SVG data as a plain text response to avoid JSON encoding
+        return Response(content=chart_data, media_type="image/svg+xml")
+        
+    except Exception as e:
+        logger.error(f"Error generating Vedic chart: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error generating Vedic chart: {str(e)}"
+        )

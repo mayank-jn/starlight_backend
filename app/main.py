@@ -124,6 +124,10 @@ app.include_router(chat.router, prefix="/api/chat", tags=["💬 Chat"])
 from app.routers import panchang
 app.include_router(panchang.router, tags=["📅 Panchang & Muhurats"])
 
+# Import and include profile router
+from app.routers import profile
+app.include_router(profile.router, prefix="/api/profile", tags=["👤 Profile Management"])
+
 @app.get("/", tags=["📋 Root"], summary="API Information")
 async def read_root():
     """
@@ -172,7 +176,10 @@ async def read_root():
             "🤖 Personalized birth chart consultations",
             "📅 Panchang calculations",
             "🕰️ Muhurat timings",
-            "🌙 Tithi & Nakshatra calculations"
+            "🌙 Tithi & Nakshatra calculations",
+            "👤 User profile management",
+            "🗄️ Supabase database integration",
+            "🔐 Secure user authentication"
         ],
         "endpoints": {
             "birth_chart": "/api/astrology/birth-chart",
@@ -185,7 +192,14 @@ async def read_root():
             "panchang": "/api/panchang/calculate",
             "today_panchang": "/api/panchang/today",
             "muhurats": "/api/panchang/muhurats",
-            "health": "/api/astrology/health"
+            "health": "/api/astrology/health",
+            "get_profile": "/api/profile/profile/{user_id}",
+            "create_profile": "/api/profile/profile",
+            "update_profile": "/api/profile/profile/{user_id}",
+            "delete_profile": "/api/profile/profile/{user_id}",
+            "check_profile_exists": "/api/profile/profile/{user_id}/exists",
+            "get_all_profiles": "/api/profile/profiles",
+            "profile_health": "/api/profile/health"
         }
     }
 

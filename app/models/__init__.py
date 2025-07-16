@@ -2,6 +2,8 @@ from pydantic import BaseModel, Field, validator
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 from enum import Enum
+import uuid
+import base64
 
 class ZodiacSign(str, Enum):
     ARIES = "Aries"
@@ -18,18 +20,19 @@ class ZodiacSign(str, Enum):
     PISCES = "Pisces"
 
 class Planet(str, Enum):
-    SUN = "Sun"
-    MOON = "Moon"
-    MERCURY = "Mercury"
-    VENUS = "Venus"
-    MARS = "Mars"
-    JUPITER = "Jupiter"
-    SATURN = "Saturn"
-    URANUS = "Uranus"
-    NEPTUNE = "Neptune"
-    PLUTO = "Pluto"
-    RAHU = "Rahu"
-    KETU = "Ketu"
+    SUN = "SUN"
+    MOON = "MOON"
+    MERCURY = "MERCURY"
+    VENUS = "VENUS"
+    MARS = "MARS"
+    JUPITER = "JUPITER"
+    SATURN = "SATURN"
+    URANUS = "URANUS"
+    NEPTUNE = "NEPTUNE"
+    PLUTO = "PLUTO"
+    RAHU = "RAHU"
+    KETU = "KETU"
+    ASCENDANT = "ASCENDANT"
 
 class HouseSystem(str, Enum):
     PLACIDUS = "Placidus"
@@ -92,7 +95,7 @@ class BirthChartRequest(BaseModel):
     birth_time: str = Field(..., description="Birth time in HH:MM format")
     latitude: float = Field(..., ge=-90, le=90, description="Latitude of birth location")
     longitude: float = Field(..., ge=-180, le=180, description="Longitude of birth location")
-    timezone: Optional[str] = Field(None, description="Timezone (e.g., 'UTC', 'America/New_York')")
+    timezone: Optional[str] = Field(default="Asia/Kolkata", description="Timezone (e.g., 'Asia/Kolkata', 'America/New_York')")
     house_system: HouseSystem = Field(default=HouseSystem.PLACIDUS, description="House system to use")
     ayanamsa: AyanamsaSystem = Field(default=AyanamsaSystem.LAHIRI, description="Ayanamsa system for Vedic calculations")
 
@@ -137,7 +140,7 @@ class DetailedReportRequest(BaseModel):
     birth_time: str = Field(..., description="Birth time in HH:MM format")
     latitude: float = Field(..., ge=-90, le=90, description="Latitude of birth location")
     longitude: float = Field(..., ge=-180, le=180, description="Longitude of birth location")
-    timezone: Optional[str] = Field(None, description="Timezone (e.g., 'UTC', 'America/New_York')")
+    timezone: Optional[str] = Field(default="Asia/Kolkata", description="Timezone (e.g., 'Asia/Kolkata', 'America/New_York')")
     house_system: HouseSystem = Field(default=HouseSystem.PLACIDUS, description="House system to use")
     ayanamsa: AyanamsaSystem = Field(default=AyanamsaSystem.LAHIRI, description="Ayanamsa system for Vedic calculations")
 
@@ -256,7 +259,7 @@ class ChatRequest(BaseModel):
     birth_time: str = Field(..., description="Birth time in HH:MM format")
     latitude: float = Field(..., ge=-90, le=90, description="Latitude of birth location")
     longitude: float = Field(..., ge=-180, le=180, description="Longitude of birth location")
-    timezone: Optional[str] = Field(None, description="Timezone (e.g., 'UTC', 'America/New_York')")
+    timezone: Optional[str] = Field(default="Asia/Kolkata", description="Timezone (e.g., 'Asia/Kolkata', 'America/New_York')")
     house_system: HouseSystem = Field(default=HouseSystem.PLACIDUS, description="House system to use")
     ayanamsa: AyanamsaSystem = Field(default=AyanamsaSystem.LAHIRI, description="Ayanamsa system for Vedic calculations")
     conversation_id: Optional[str] = Field(None, description="Conversation ID for maintaining context")
@@ -283,3 +286,153 @@ class ConversationHistoryResponse(BaseModel):
 class SuggestedQuestionsResponse(BaseModel):
     questions: List[str] = Field(..., description="List of suggested questions")
     birth_chart_summary: Dict[str, Any] = Field(..., description="Birth chart summary used for suggestions")
+
+# Profile models for Supabase integration
+class UserProfile(BaseModel):
+    id: Optional[str] = Field(None, description="Profile ID")
+    user_id: str = Field(..., description="User ID from Supabase Auth")
+    name: Optional[str] = Field(None, description="User's full name")
+    birth_date: str = Field(..., description="Birth date in YYYY-MM-DD format")
+    birth_time: str = Field(..., description="Birth time in HH:MM format")
+    latitude: float = Field(..., ge=-90, le=90, description="Latitude of birth location")
+    longitude: float = Field(..., ge=-180, le=180, description="Longitude of birth location")
+    timezone: Optional[str] = Field(default="Asia/Kolkata", description="Timezone (e.g., 'Asia/Kolkata', 'America/New_York')")
+    city: Optional[str] = Field(None, description="Birth city")
+    state: Optional[str] = Field(None, description="Birth state/province")
+    country: Optional[str] = Field(None, description="Birth country")
+    created_at: Optional[datetime] = Field(None, description="Profile creation timestamp")
+    updated_at: Optional[datetime] = Field(None, description="Profile update timestamp")
+    
+    @validator('birth_date')
+    def validate_birth_date(cls, v):
+        try:
+            datetime.strptime(v, '%Y-%m-%d')
+            return v
+        except ValueError:
+            raise ValueError('Birth date must be in YYYY-MM-DD format')
+
+    @validator('birth_time')
+    def validate_birth_time(cls, v):
+        try:
+            # Try HH:MM format first
+            datetime.strptime(v, '%H:%M')
+            return v
+        except ValueError:
+            try:
+                # If HH:MM fails, try HH:MM:SS and convert to HH:MM
+                dt = datetime.strptime(v, '%H:%M:%S')
+                return dt.strftime('%H:%M')
+            except ValueError:
+                raise ValueError('Birth time must be in HH:MM format')
+
+class ProfileCreateRequest(BaseModel):
+    user_id: str = Field(..., description="User ID from Supabase Auth")
+    name: Optional[str] = Field(None, description="User's full name")
+    birth_date: str = Field(..., description="Birth date in YYYY-MM-DD format")
+    birth_time: str = Field(..., description="Birth time in HH:MM format")
+    latitude: float = Field(..., ge=-90, le=90, description="Latitude of birth location")
+    longitude: float = Field(..., ge=-180, le=180, description="Longitude of birth location")
+    timezone: Optional[str] = Field(default="Asia/Kolkata", description="Timezone (e.g., 'Asia/Kolkata', 'America/New_York')")
+    city: Optional[str] = Field(None, description="Birth city")
+    state: Optional[str] = Field(None, description="Birth state/province")
+    country: Optional[str] = Field(None, description="Birth country")
+    
+    @validator('birth_date')
+    def validate_birth_date(cls, v):
+        try:
+            datetime.strptime(v, '%Y-%m-%d')
+            return v
+        except ValueError:
+            raise ValueError('Birth date must be in YYYY-MM-DD format')
+
+    @validator('birth_time')
+    def validate_birth_time(cls, v):
+        if v is not None:
+            try:
+                # Try HH:MM format first
+                datetime.strptime(v, '%H:%M')
+                return v
+            except ValueError:
+                try:
+                    # If HH:MM fails, try HH:MM:SS and convert to HH:MM
+                    dt = datetime.strptime(v, '%H:%M:%S')
+                    return dt.strftime('%H:%M')
+                except ValueError:
+                    raise ValueError('Birth time must be in HH:MM format')
+        return v
+
+class ProfileUpdateRequest(BaseModel):
+    name: Optional[str] = Field(None, description="User's full name")
+    birth_date: Optional[str] = Field(None, description="Birth date in YYYY-MM-DD format")
+    birth_time: Optional[str] = Field(None, description="Birth time in HH:MM format")
+    latitude: Optional[float] = Field(None, ge=-90, le=90, description="Latitude of birth location")
+    longitude: Optional[float] = Field(None, ge=-180, le=180, description="Longitude of birth location")
+    timezone: Optional[str] = Field(None, description="Timezone (e.g., 'Asia/Kolkata', 'America/New_York')")
+    city: Optional[str] = Field(None, description="Birth city")
+    state: Optional[str] = Field(None, description="Birth state/province")
+    country: Optional[str] = Field(None, description="Birth country")
+    
+    @validator('birth_date')
+    def validate_birth_date(cls, v):
+        if v is not None:
+            try:
+                datetime.strptime(v, '%Y-%m-%d')
+                return v
+            except ValueError:
+                raise ValueError('Birth date must be in YYYY-MM-DD format')
+        return v
+
+    @validator('birth_time')
+    def validate_birth_time(cls, v):
+        if v is not None:
+            try:
+                # Try HH:MM format first
+                datetime.strptime(v, '%H:%M')
+                return v
+            except ValueError:
+                try:
+                    # If HH:MM fails, try HH:MM:SS and convert to HH:MM
+                    dt = datetime.strptime(v, '%H:%M:%S')
+                    return dt.strftime('%H:%M')
+                except ValueError:
+                    raise ValueError('Birth time must be in HH:MM format')
+        return v
+
+class ProfileResponse(BaseModel):
+    success: bool = Field(..., description="Whether the operation was successful")
+    profile: Optional[UserProfile] = Field(None, description="User profile data")
+    message: Optional[str] = Field(None, description="Success or error message")
+    error: Optional[str] = Field(None, description="Error message if failed")
+
+class BirthChartDetails(BaseModel):
+    id: Optional[str] = Field(None, description="Chart details ID")
+    user_id: str = Field(..., description="User ID from Supabase Auth")
+    planet_positions: List[Dict[str, Any]] = Field(..., description="Array of planet positions")
+    chart_image: bytes = Field(..., description="Binary data of the birth chart image")
+    created_at: Optional[datetime] = Field(None, description="Creation timestamp")
+    updated_at: Optional[datetime] = Field(None, description="Last update timestamp")
+
+    class Config:
+        json_encoders = {
+            bytes: lambda v: base64.b64encode(v).decode('utf-8')
+        }
+
+class BirthChartWithUserRequest(BirthChartRequest):
+    user_id: str = Field(..., description="User ID from Supabase Auth")
+    city: Optional[str] = Field(None, description="Birth city")
+    state: Optional[str] = Field(None, description="Birth state/province")
+    country: Optional[str] = Field(None, description="Birth country")
+
+class BirthChartDetailsResponse(BaseModel):
+    """Response model for birth chart details with essential fields"""
+    name: Optional[str] = Field(None, description="Name of the person")
+    birth_datetime: datetime = Field(..., description="Birth date and time")
+    location: Dict[str, float] = Field(..., description="Birth location coordinates")
+    planets: List[Dict[str, Any]] = Field(..., description="Array of planet positions")
+    chart_summary: Dict[str, Any] = Field(..., description="Chart summary and statistics")
+    vedic_chart_svg: Optional[str] = Field(None, description="SVG data for the Vedic chart")
+
+    class Config:
+        json_encoders = {
+            bytes: lambda v: base64.b64encode(v).decode('utf-8')
+        }
